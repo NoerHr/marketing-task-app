@@ -4,7 +4,8 @@
   "rewrites": [
     { "source": "/api/cron/:path*", "destination": "/api/cron/:path*" },
     { "source": "/api/:path*", "destination": "/api" },
-    { "source": "/health", "destination": "/api" }
+    { "source": "/health", "destination": "/api" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [
     {
