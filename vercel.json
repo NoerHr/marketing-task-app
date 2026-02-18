@@ -1,7 +1,15 @@
 {
   "framework": "vite",
+  "buildCommand": "npm run db:migrate:deploy && npm run build",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://RENDER_BACKEND_URL/api/:path*" },
-    { "source": "/health", "destination": "https://RENDER_BACKEND_URL/health" }
+    { "source": "/api/cron/:path*", "destination": "/api/cron/:path*" },
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/health", "destination": "/api" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 1 * * *"
+    }
   ]
 }
