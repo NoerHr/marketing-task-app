@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Product plan (design docs, not needed in deploy)
+product-plan
+
+# Agent OS & Claude config (development tooling)
+agent-os
+.claude

@@ -1,0 +1,1 @@
+export { ActivityTypeView } from './ActivityTypeView'

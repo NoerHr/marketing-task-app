@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────
+
+enum UserRole {
+  Leader
+  PIC
+}
+
+enum UserStatus {
+  Active
+  Deactivated
+}
+
+enum TaskPriority {
+  Low
+  Medium
+  High
+}
+
+enum ConnectionStatus {
+  Connected
+  Disconnected
+}
+
+// ─── System ──────────────────────────────────────────────────────
+
+model IdCounter {
+  prefix       String @id
+  currentValue Int    @default(0)
+}
+
+// ─── Core: User ──────────────────────────────────────────────────
+
+model User {
+  id                      String     @id // usr-001
+  name                    String
+  email                   String     @unique
+  passwordHash            String
+  avatarUrl               String?
+  role                    UserRole   @default(PIC)
+  isSuperAdmin            Boolean    @default(false)
+  status                  UserStatus @default(Active)
+  notificationPreferences Json       @default("{\"taskAssignment\":true,\"approval\":true,\"revision\":true,\"reassignment\":true,\"deadlineAlert\":true}")
+  lastActiveAt            DateTime   @default(now())
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  // Relations
+  activityPics      ActivityPic[]
+  activityApprovers ActivityApprover[]
+  taskPics          TaskPic[]
+  taskApprovers     TaskApprover[]
+  createdTasks      Task[]            @relation("TaskCreator")
+  approvalLogs      ApprovalLog[]     @relation("ApprovalReviewer")
+  assignmentLogs    AssignmentLog[]   @relation("AssignmentChanger")
+  affectedAssignments AssignmentLog[] @relation("AssignmentAffected")
+  invitesSent       Invite[]
+  passwordResets    PasswordResetToken[]
+  notifications     Notification[]
+}
+
+// ─── Core: ActivityType ──────────────────────────────────────────
+
+model ActivityType {
+  id         String   @id // at-001
+  name       String   @unique
+  color      String   // Hex color: #f43f5e
+  icon       String?  // Lucide icon name
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  activities Activity[]
+}
+
+// ─── Core: Activity ──────────────────────────────────────────────
+
+model Activity {
+  id               String   @id // act-001
+  name             String
+  description      String   @default("")
+  activityTypeId   String
+  status           String   @default("Active") // Active, Completed, Cancelled, Archived
+  startDate        DateTime @db.Date
+  endDate          DateTime @db.Date
+  requiresBudget   Boolean  @default(false)
+  estimatedBudget  Decimal? @db.Decimal(15, 2)
+  spentBudget      Decimal? @db.Decimal(15, 2)
+  currency         String   @default("IDR")
+  budgetNeededDate DateTime? @db.Date
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  activityType ActivityType       @relation(fields: [activityTypeId], references: [id])
+  pics         ActivityPic[]
+  approvers    ActivityApprover[]
+  tasks        Task[]
+  reminders    Reminder[]
+}
+
+// ─── Core: Task ──────────────────────────────────────────────────
+
+model Task {
+  id              String   @id // tsk-001
+  name            String
+  description     String   @default("")
+  activityId      String
+  status          String   @default("To Do") // To Do, In Progress, Need Review, Revision, Approved, Archived
+  priority        TaskPriority @default(Medium)
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+  startTime       String?  // HH:MM
+  endTime         String?  // HH:MM
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  activity      Activity        @relation(fields: [activityId], references: [id])
+  createdBy     User            @relation("TaskCreator", fields: [createdById], references: [id])
+  pics          TaskPic[]
+  approvers     TaskApprover[]
+  approvalLogs  ApprovalLog[]
+  assignmentLogs AssignmentLog[]
+  reminders     TaskReminder[]
+}
+
+// ─── Join Tables ─────────────────────────────────────────────────
+
+model ActivityPic {
+  activityId String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+}
+
+model ActivityApprover {
+  activityId String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+}
+
+model TaskPic {
+  taskId     String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+}
+
+model TaskApprover {
+  taskId     String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+}
+
+// ─── Audit Logs ──────────────────────────────────────────────────
+
+model ApprovalLog {
+  id         String   @id // apr-001
+  taskId     String
+  reviewerId String
+  action     String   // approved, revision
+  feedback   String   @default("")
+  createdAt  DateTime @default(now())
+
+  task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  reviewer User @relation("ApprovalReviewer", fields: [reviewerId], references: [id])
+}
+
+model AssignmentLog {
+  id               String   @id // asg-001
+  taskId           String
+  changedById      String
+  actionType       String   // add, remove, replace
+  affectedUserId   String
+  createdAt        DateTime @default(now())
+
+  task         Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  changedBy    User @relation("AssignmentChanger", fields: [changedById], references: [id])
+  affectedUser User @relation("AssignmentAffected", fields: [affectedUserId], references: [id])
+}
+
+// ─── Messaging ───────────────────────────────────────────────────
+
+model MessageTemplate {
+  id           String   @id // mt-001
+  name         String
+  body         String
+  placeholders String[] // PostgreSQL array: ['task_name', 'deadline']
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Reminder {
+  id            String   @id // rem-001
+  activityId    String
+  trigger       String   // H-7, H-3, H-1, Day-H, Custom
+  customDays    Int?
+  channel       String   // Marketing, Finance
+  templateId    String?
+  customMessage String?
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model TaskReminder {
+  id            String   @id // trem-001
+  taskId        String
+  trigger       String   // H-7, H-3, H-1, Day-H, Custom
+  customDays    Int?
+  channel       String   // Marketing, Finance
+  templateId    String?
+  customMessage String?
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model WhatsappAccount {
+  id                String           @id @default("default")
+  apiKeyEncrypted   String           // AES-256-GCM encrypted
+  phoneNumber       String
+  connectionStatus  ConnectionStatus @default(Disconnected)
+  lastTestedAt      DateTime?
+  updatedAt         DateTime         @updatedAt
+}
+
+model WhatsappGroup {
+  id                String           @id // wg-001
+  name              String
+  groupIdEncrypted  String           // AES-256-GCM encrypted
+  type              String           // Marketing, Marketing-Finance
+  memberCount       Int              @default(0)
+  lastMessageSentAt DateTime?
+  connectionStatus  ConnectionStatus @default(Connected)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+// ─── Notifications ──────────────────────────────────────────
+
+model Notification {
+  id         String   @id // notif-001
+  userId     String
+  type       String   // taskAssignment, approval, revision, reassignment, deadlineAlert, reminder
+  title      String
+  message    String
+  taskId     String?
+  activityId String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Auth Tokens ─────────────────────────────────────────────────
+
+model Invite {
+  id          String   @id @default(cuid())
+  email       String
+  role        UserRole @default(PIC)
+  token       String   @unique
+  invitedById String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  invitedBy User @relation(fields: [invitedById], references: [id])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
