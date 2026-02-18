@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "buildCommand": "npm run db:migrate:deploy && npm run build",
+  "buildCommand": "npm run build",
   "rewrites": [
     { "source": "/api/cron/:path*", "destination": "/api/cron/:path*" },
     { "source": "/api/:path*", "destination": "/api" },
