@@ -1,0 +1,15 @@
+{
+  "framework": "vite",
+  "buildCommand": "cd server && npm install --include=dev && npx prisma generate && npx tsc && cd .. && npx vite build",
+  "rewrites": [
+    { "source": "/api/cron/:path*", "destination": "/api/cron/:path*" },
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/health", "destination": "/api" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 1 * * *"
+    }
+  ]
+}
