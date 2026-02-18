@@ -4,6 +4,7 @@ import { AppShell } from '@/components/shell'
 import type { NavItem } from '@/components/shell'
 import { navigationItems } from '@/data/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/hooks/useTheme'
 import { api } from '@/lib/api'
 import type { Notification } from '@/types/notification'
 import DashboardPage from '@/pages/DashboardPage'
@@ -105,6 +106,9 @@ function AppShellLayout() {
 }
 
 export default function App() {
+  // Apply theme at root level so it persists across all pages
+  useTheme()
+
   return (
     <Routes>
       {/* Auth routes — redirect to dashboard if already logged in */}

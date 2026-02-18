@@ -15,18 +15,32 @@ dashboardRouter.get('/summary', async (req: Request, res: Response) => {
     const weekEnd = new Date(now);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
+    const userId = req.user!.sub;
+    const isLeader = req.user!.role === 'Leader' || req.user!.isSuperAdmin;
+
+    const taskWhere: any = { status: { not: 'Archived' } };
+    if (!isLeader) {
+      taskWhere.pics = { some: { userId } };
+    }
+
     const tasks = await prisma.task.findMany({
-      where: { status: { not: 'Archived' } },
+      where: taskWhere,
       select: { id: true, status: true, endDate: true },
     });
 
     const overdueCount = tasks.filter((t) => isOverdue(t.endDate, t.status)).length;
+
+    const activityWhere: any = {
+      status: 'Active',
+      startDate: { lte: weekEnd },
+      endDate: { gte: now },
+    };
+    if (!isLeader) {
+      activityWhere.pics = { some: { userId } };
+    }
+
     const thisWeekActivities = await prisma.activity.count({
-      where: {
-        status: 'Active',
-        startDate: { lte: weekEnd },
-        endDate: { gte: now },
-      },
+      where: activityWhere,
     });
 
     return success(res, {
@@ -40,15 +54,21 @@ dashboardRouter.get('/summary', async (req: Request, res: Response) => {
 });
 
 // GET /dashboard/activity-summary
-dashboardRouter.get('/activity-summary', async (_req: Request, res: Response) => {
+dashboardRouter.get('/activity-summary', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.sub;
+    const isLeader = req.user!.role === 'Leader' || req.user!.isSuperAdmin;
+
+    const picFilter = !isLeader ? { pics: { some: { userId } } } : {};
+
     const [active, completed, archived] = await Promise.all([
-      prisma.activity.count({ where: { status: 'Active' } }),
-      prisma.activity.count({ where: { status: 'Completed' } }),
-      prisma.activity.count({ where: { status: 'Archived' } }),
+      prisma.activity.count({ where: { status: 'Active', ...picFilter } }),
+      prisma.activity.count({ where: { status: 'Completed', ...picFilter } }),
+      prisma.activity.count({ where: { status: 'Archived', ...picFilter } }),
     ]);
 
-    const needReview = await prisma.task.count({ where: { status: 'Need Review' } });
+    const taskPicFilter = !isLeader ? { pics: { some: { userId } } } : {};
+    const needReview = await prisma.task.count({ where: { status: 'Need Review', ...taskPicFilter } });
 
     return success(res, { active, completed, needReview, archived });
   } catch (err) {

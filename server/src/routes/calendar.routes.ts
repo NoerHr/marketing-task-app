@@ -11,6 +11,9 @@ calendarRouter.use(requireAuth);
 // GET /calendar/summary
 calendarRouter.get('/summary', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.sub;
+    const isLeader = req.user!.role === 'Leader' || req.user!.isSuperAdmin;
+
     // Use month param as reference point if provided, otherwise use current date
     let now = new Date();
     const monthParam = req.query.month as string | undefined;
@@ -21,8 +24,13 @@ calendarRouter.get('/summary', async (req: Request, res: Response) => {
     const next7Days = new Date(now);
     next7Days.setDate(next7Days.getDate() + 7);
 
+    const taskWhere: any = { status: { notIn: ['Archived', 'Approved'] } };
+    if (!isLeader) {
+      taskWhere.pics = { some: { userId } };
+    }
+
     const tasks = await prisma.task.findMany({
-      where: { status: { notIn: ['Archived', 'Approved'] } },
+      where: taskWhere,
       select: { id: true, status: true, endDate: true, startDate: true },
     });
 
@@ -43,18 +51,26 @@ calendarRouter.get('/summary', async (req: Request, res: Response) => {
 // GET /calendar/workloads?month=YYYY-MM
 calendarRouter.get('/workloads', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.sub;
+    const isLeader = req.user!.role === 'Leader' || req.user!.isSuperAdmin;
+
     const month = (req.query.month as string) || new Date().toISOString().slice(0, 7);
     const [year, mon] = month.split('-').map(Number);
 
     const startOfMonth = new Date(year, mon - 1, 1);
     const endOfMonth = new Date(year, mon, 0);
 
+    const taskWhere: any = {
+      status: { not: 'Archived' },
+      startDate: { lte: endOfMonth },
+      endDate: { gte: startOfMonth },
+    };
+    if (!isLeader) {
+      taskWhere.pics = { some: { userId } };
+    }
+
     const tasks = await prisma.task.findMany({
-      where: {
-        status: { not: 'Archived' },
-        startDate: { lte: endOfMonth },
-        endDate: { gte: startOfMonth },
-      },
+      where: taskWhere,
       select: { startDate: true, endDate: true },
     });
 
