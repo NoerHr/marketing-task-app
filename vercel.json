@@ -1,12 +1,10 @@
 {
   "buildCommand": "cd server && npm install --include=dev && npx prisma generate && npx tsc && cd .. && npx vite build",
   "outputDirectory": "dist",
-  "routes": [
-    { "src": "/api/cron/(.*)", "dest": "/api/cron/$1" },
-    { "src": "/api/(.*)", "dest": "/api" },
-    { "src": "/health", "dest": "/api" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/health", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
     {
