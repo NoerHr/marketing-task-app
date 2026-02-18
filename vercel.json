@@ -1,0 +1,7 @@
+{
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://RENDER_BACKEND_URL/api/:path*" },
+    { "source": "/health", "destination": "https://RENDER_BACKEND_URL/health" }
+  ]
+}

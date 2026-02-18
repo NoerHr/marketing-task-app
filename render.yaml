@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: marketing-task-api
+    runtime: node
+    region: singapore
+    rootDir: server
+    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: WATZAP_API_KEY
+        sync: false
+      - key: WATZAP_NUMBER_ID
+        sync: false
