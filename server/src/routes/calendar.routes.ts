@@ -8,12 +8,50 @@ export const calendarRouter = Router();
 
 calendarRouter.use(requireAuth);
 
+/** Split a query param that may contain comma-separated values */
+function splitParam(val: string | string[]): string[] {
+  if (Array.isArray(val)) return val.flatMap(v => v.split(','));
+  return val.split(',');
+}
+
+/** Build common filter conditions from calendar query params */
+function buildFilterWhere(req: Request): any {
+  const q = req.query as any;
+  const userId = req.user!.sub;
+  const where: any = {};
+
+  // Filter by myTasksOnly
+  if (q.myTasksOnly === 'true') {
+    where.pics = { some: { userId } };
+  }
+
+  // Filter by PIC
+  const picIds = q.picId || q.picIds;
+  if (picIds) {
+    const ids = splitParam(picIds);
+    where.pics = { some: { userId: { in: ids } } };
+  }
+
+  // Filter by activity type
+  const atIds = q.activityTypeId || q.activityTypeIds;
+  if (atIds) {
+    const ids = splitParam(atIds);
+    where.activity = { activityTypeId: { in: ids } };
+  }
+
+  // Filter by status (override default exclusion)
+  const statuses = q.status || q.statuses;
+  if (statuses) {
+    const statusList = splitParam(statuses);
+    where.status = { in: statusList };
+  }
+
+  return where;
+}
+
 // GET /calendar/summary
 calendarRouter.get('/summary', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.sub;
-    const isLeader = req.user!.role === 'Leader' || req.user!.isSuperAdmin;
-
     // Use month param as reference point if provided, otherwise use current date
     let now = new Date();
     const monthParam = req.query.month as string | undefined;
@@ -24,10 +62,8 @@ calendarRouter.get('/summary', async (req: Request, res: Response) => {
     const next7Days = new Date(now);
     next7Days.setDate(next7Days.getDate() + 7);
 
-    const taskWhere: any = { status: { notIn: ['Archived', 'Approved'] } };
-    if (!isLeader) {
-      taskWhere.pics = { some: { userId } };
-    }
+    const filterWhere = buildFilterWhere(req);
+    const taskWhere: any = { status: { notIn: ['Archived', 'Approved'] }, ...filterWhere };
 
     const tasks = await prisma.task.findMany({
       where: taskWhere,
@@ -51,23 +87,19 @@ calendarRouter.get('/summary', async (req: Request, res: Response) => {
 // GET /calendar/workloads?month=YYYY-MM
 calendarRouter.get('/workloads', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.sub;
-    const isLeader = req.user!.role === 'Leader' || req.user!.isSuperAdmin;
-
     const month = (req.query.month as string) || new Date().toISOString().slice(0, 7);
     const [year, mon] = month.split('-').map(Number);
 
     const startOfMonth = new Date(year, mon - 1, 1);
     const endOfMonth = new Date(year, mon, 0);
 
+    const filterWhere = buildFilterWhere(req);
     const taskWhere: any = {
       status: { not: 'Archived' },
       startDate: { lte: endOfMonth },
       endDate: { gte: startOfMonth },
+      ...filterWhere,
     };
-    if (!isLeader) {
-      taskWhere.pics = { some: { userId } };
-    }
 
     const tasks = await prisma.task.findMany({
       where: taskWhere,

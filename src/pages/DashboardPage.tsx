@@ -107,6 +107,9 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
+      const isPic = user?.role !== 'Leader'
+      const picParam = isPic ? '&myTasksOnly=true' : ''
+
       const [
         meRes,
         summaryRes,
@@ -125,8 +128,8 @@ export default function DashboardPage() {
         api.get<PicProgressItem[]>('/api/dashboard/pic-progress'),
         api.get<BudgetItem[]>('/api/dashboard/budget-overview'),
         api.get<ApiMyProgress>('/api/dashboard/my-progress'),
-        api.get<ApiTask[]>('/api/tasks?status=overdue&limit=5'),
-        api.get<ApiTask[]>('/api/tasks?sort=recent&limit=5'),
+        api.get<ApiTask[]>(`/api/tasks?status=overdue&limit=5${picParam}`),
+        api.get<ApiTask[]>(`/api/tasks?sort=recent&limit=5${picParam}`),
         api.get<ApiActivity[]>('/api/activities'),
         api.get<ApiUser[]>('/api/users'),
       ])

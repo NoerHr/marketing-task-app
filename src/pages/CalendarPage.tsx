@@ -49,14 +49,19 @@ function getMonthRange(dateStr: string): { startDate: string; endDate: string } 
   }
 }
 
-function buildCalendarQuery(startDate: string, endDate: string, f: CalendarFilter): string {
+function buildFilterParams(f: CalendarFilter): URLSearchParams {
   const params = new URLSearchParams()
-  params.set('startDate', startDate)
-  params.set('endDate', endDate)
   if (f.activityTypeIds.length) params.set('activityTypeId', f.activityTypeIds.join(','))
   if (f.picIds.length) params.set('picId', f.picIds.join(','))
   if (f.statuses.length) params.set('status', f.statuses.join(','))
   if (f.myTasksOnly) params.set('myTasksOnly', 'true')
+  return params
+}
+
+function buildCalendarQuery(startDate: string, endDate: string, f: CalendarFilter): string {
+  const params = buildFilterParams(f)
+  params.set('startDate', startDate)
+  params.set('endDate', endDate)
   return params.toString()
 }
 
@@ -150,10 +155,13 @@ export default function CalendarPage() {
     const { startDate, endDate } = getMonthRange(date)
     const query = buildCalendarQuery(startDate, endDate, f)
     try {
+      const fp = buildFilterParams(f)
+      fp.set('month', month)
+      const filterQuery = fp.toString()
       const [tasksRes, summaryRes, workloadRes, conflictsRes, typesRes, usersRes, templatesRes, activitiesRes, channelsRes] = await Promise.all([
         api.get<ApiTask[]>(`/api/tasks?${query}`),
-        api.get<PlanSummary>(`/api/calendar/summary?month=${month}`),
-        api.get<DayWorkload[]>(`/api/calendar/workloads?month=${month}`),
+        api.get<PlanSummary>(`/api/calendar/summary?${filterQuery}`),
+        api.get<DayWorkload[]>(`/api/calendar/workloads?${filterQuery}`),
         api.get<ConflictWarning[]>('/api/calendar/conflicts'),
         api.get<ActivityTypeOption[]>('/api/activity-types'),
         api.get<UserOption[]>('/api/users'),

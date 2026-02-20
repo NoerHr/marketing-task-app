@@ -131,6 +131,11 @@ usersRouter.patch('/:id', requireLeader, validate(UpdateUserSchema), async (req:
       return notFound(res, 'User not found');
     }
 
+    // Prevent changing own role
+    if (id === req.user!.sub && req.body.role && req.body.role !== existing.role) {
+      return badRequest(res, 'Cannot change your own role');
+    }
+
     // Only super admins can grant super admin
     if (req.body.isSuperAdmin && !req.user!.isSuperAdmin) {
       return badRequest(res, 'Only super admins can grant super admin access');

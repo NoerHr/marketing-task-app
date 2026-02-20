@@ -238,10 +238,12 @@ export function CalendarView({
                 <span className="flex size-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-bold text-white">{filter.activityTypeIds.length + filter.picIds.length + filter.statuses.length + (filter.myTasksOnly ? 1 : 0)}</span>
               )}
             </button>
+            {!isLeader && (
             <button
               onClick={() => onFilterChange?.({ ...filter, myTasksOnly: !filter.myTasksOnly })}
               className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${filter.myTasksOnly ? 'bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 dark:bg-indigo-500/15 dark:text-indigo-400' : 'border border-white/60 bg-white/70 text-slate-500 shadow-sm backdrop-blur-xl hover:bg-white/90 dark:border-slate-700/40 dark:bg-slate-800/60 dark:text-slate-400'}`}
             ><User className="size-3.5" />My Tasks</button>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
